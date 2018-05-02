@@ -11,11 +11,11 @@
     </div>
     <iframe id="gameFrame" class="gameFrame" height="100%" width="100%" style="border: none;" scrolling="no" allowtransparency="yes" :src="app_url"></iframe>
 
-    <login v-model="loginShow" @on-login-complete="loginCallback"></login>
-    <register v-model="registerShow"></register>
-    <change-password v-model="changePasswordShow"></change-password>
-    <real-name v-model="realNameShow"></real-name>
-    <bound v-model="boundShow"></bound>
+    <login v-model="loginShow" @on-handle-complete="loginCallback"></login>
+    <register v-model="registerShow"  @on-handle-complete="callbackHandle"></register>
+    <change-password v-model="changePasswordShow" @on-handle-complete="callbackHandle"></change-password>
+    <real-name v-model="realNameShow" @on-handle-complete="realNameView"></real-name>
+    <bound v-model="boundShow" @on-handle-complete="callbackHandle"></bound>
   </div>
 </template>
 
@@ -27,7 +27,7 @@ import realName from './realName.vue';
 import bound from './bound.vue';
 import util from '@/libs/util.js';
 //回调专用变量
-var callbackFun = null;
+window.callbackFun = null;
 var callbackFunInit=null
 export default {
   data () {
@@ -150,22 +150,29 @@ export default {
         game_code:obj.gameCode,
         debug:obj.debug,
       });
-      util.ajaxRequestData(util.getUrl('initSdkType'),{},(res)=>{
-          if(res.status&&!res.data.code){
-              this.$store.commit('setAppInfo',{
-                isNative:res.data.data.is_native
-              });
-              var comm=this.$store.state
-
-              if(comm.isNative&&window.WhaleSdk){
-                  this.assistive=false
-                  var o=obj?JSON.stringify(obj):'';
-                  WhaleSdk.init(o)
-                  return;
-              }
-              this.h5Init()
-          }
-      });
+      if(this.$store.state.mayInit){
+        util.ajaxRequestData(util.getUrl('initSdkType'),{},(res)=>{
+            if(res.status&&!res.data.code){
+                this.$store.commit('setAppInfo',{
+                  isNative:res.data.data.is_native
+                });
+                var comm=this.$store.state
+                if(comm.isNative&&window.WhaleSdk){
+                    this.assistive=false
+                    var o=obj?JSON.stringify(obj):'';
+                    WhaleSdk.init(o)
+                    return;
+                }
+                this.h5Init()
+            }
+        });
+      }
+      else{
+        callbackFunInit({status:true})
+        this.$store.commit('setAppInfo',{
+          mayInit:true
+        });
+      }
     },
     getDeviceInfo(){
         var obj={};
@@ -234,7 +241,7 @@ export default {
     },
     refreshGame(){
         var app_url=this.$store.state.app_url||util.app_url
-        this.app_url=app_url+'?t='+new Date().getTime(); 
+        this.$store.commit('setGameUrl',app_url+'?t='+new Date().getTime());
     },
     setServiceViewsStatu(status){
 
@@ -245,16 +252,27 @@ export default {
     showLoginViews(callback){
       this.loginShow=true;
     },
-    loginCallback(obj){
+    callbackHandle(obj){
         util.setUserCache(obj);
-        //this.setServiceViewsStatu('user');
+        this.setServiceViewsStatu('user');
         util.setCookie('password',obj.pwd);
         this.refreshGame();
         this.realNameView(obj);
+    },
+    loginCallback(obj){
+        this.callbackHandle(obj)
         //判断是否实名
-        if(COMM.real_name_auth===1&&!obj.identity){
+        if(this.$store.state.real_name_auth===1&&!obj.identity){
             this.realNameShow=true;
         }
+    },
+    realNameCallback(obj){
+      this.realNameView(obj);
+    }
+  },
+  watch:{
+    '$store.state.gameUrl'(v){
+      this.app_url=v;
     }
   }
 }
@@ -264,7 +282,7 @@ export default {
   .menu{
     position: fixed;
     width: 100px;
-    right: 0;
+    left: 0;
     bottom: 20px;
   }
 </style>

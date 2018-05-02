@@ -19,19 +19,21 @@
          <div class="btn" style="padding:10px;">
             <flexbox>
               <flexbox-item :span="4"><x-button plain type="primary" @click.native="close()">关闭</x-button></flexbox-item>
-              <flexbox-item><x-button type="primary">登录</x-button></flexbox-item>
+              <flexbox-item><x-button type="primary" @click.native="save()">提交</x-button></flexbox-item>
             </flexbox>   
          </div>
       </x-dialog>
-      <popup v-model="agreementShow" position="bottom" height="100%" :popup-style="s">
+      <popup v-model="agreementShow" position="bottom" height="100%" :popup-style="{'z-index':7000}">
           <popup-header right-text="关闭" title="用户注册协议" @on-click-right="agreementClose()"></popup-header>
-          <div style="height:calc(100% - 44px);overflow-x: hidden; overflow-y: scroll">
+          <div style="height:calc(100% - 44px);overflow: hidden;">
             <iframe  height="100%" width="100%" style="border: none;" frameborder="no" allowtransparency="yes" scrolling="auto" src="https://account.jinsdk.com/agreement.html"></iframe>            
           </div>
       </popup>
 </div>
 </template>
 <script>
+import util from '@/libs/util.js';
+import {md5} from 'vux';
 export default{
 	data(){
 		return{	
@@ -39,9 +41,6 @@ export default{
       password:'',
       agreementShow:false,
 			agreement:true,
-      s:{
-        'z-index':7000
-      }
 		}
 	},
   	props: {
@@ -55,7 +54,48 @@ export default{
         this.agreementShow=false;
       },
       close(){
+        this.open_id='';
+        this.password='';
         this.$emit('input', false);
+      },
+      save(){
+        var url = util.getUrl('register');
+        var open_id = this.open_id;
+        var pwd =this.password;
+        var checkUName =util.checkUname(open_id);
+        if (checkUName.status == false) {
+            this.$vux.alert.show({content: checkUName.msg});
+            return false;
+        }
+
+        if (pwd.length < 6 || pwd.length > 16) {
+            this.$vux.alert.show({content: "密码格式错误"});
+            return false;
+        }
+        if (!this.agreement) {
+            this.$vux.alert.show({content: "请同意用户注册协议"});
+            return false;
+        }
+        pwd=md5(pwd)
+        var urlData={
+            source:'DEFAULT',
+            open_id:open_id,
+            password:pwd
+        }
+        util.ajaxRequestData(url, urlData, (rebackData)=> {
+            util.setLog(JSON.stringify(rebackData), 3);
+            if (rebackData.status) {
+                var s_res=rebackData.data
+                if(!s_res.code){
+                  s_res.data.pwd=pwd;
+                  this.close();
+                  this.$store.commit('setAppInfo',{ mayInit:false });
+                  this.$emit('on-handle-complete',s_res.data);
+                }else{
+                  this.$vux.alert.show({content: s_res.msg});
+                }
+            }
+        });
       }
     }
 }

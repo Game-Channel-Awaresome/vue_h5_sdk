@@ -15,7 +15,7 @@
          <div class="btn" style="padding:10px;">
             <flexbox>
               <flexbox-item :span="4"><x-button plain type="primary" @click.native="close()">关闭</x-button></flexbox-item>
-              <flexbox-item><x-button type="primary" @click.native="login()">登录</x-button></flexbox-item>
+              <flexbox-item><x-button type="primary" @click.native="save()">登录</x-button></flexbox-item>
             </flexbox>
          </div>
          <divider>或</divider>
@@ -43,9 +43,11 @@ export default{
     },
     methods:{
       close(){
+        this.open_id='';
+        this.password=''        
         this.$emit('input', false);
       },
-      login(){
+      save(){
         var open_id = this.open_id;
         var pwd = this.password;
 
@@ -69,7 +71,11 @@ export default{
                 var s_res=rebackData.data;
                 if(!s_res.code){
                     s_res.data.pwd=pwd;
-                    this.$emit('on-login-complete',s_res.data);
+                    this.close();
+                    this.$store.commit('setAppInfo',{
+                      mayInit:false
+                    });                    
+                    this.$emit('on-handle-complete',s_res.data);
                 }
                 else{
                     this.$vux.alert.show({content: s_res.msg});

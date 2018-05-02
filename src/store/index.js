@@ -5,6 +5,7 @@ Vue.use(Vuex);
 
 const store = new Vuex.Store({
     state: {
+        gameUrl:"",
         product_key:'',
         product_code:'',
         game_code:'ow',
@@ -19,11 +20,15 @@ const store = new Vuex.Store({
         equipmentname:'whale',
         package_code:'t20bC',
         lang:'CN',
-        pf:'jingyu'
+        pf:'jingyu',
+        mayInit:true, //设置是否要通过初始化登录账户
     },
     mutations: {
         setAppInfo (state, obj) {
             state=Object.assign(state,obj);
+        },
+        setGameUrl(state,str){
+            state.gameUrl=str;
         }
     },
     actions: {

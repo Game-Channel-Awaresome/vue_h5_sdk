@@ -1,7 +1,5 @@
 import Vue from 'vue';
-import { md5 } from 'vux'
-
-const ajaxUrl ='http://120.79.137.79/LDproject/public'
+import { md5 } from 'vux';
 let util = {
     apiUrl:'https://account.jinsdk.com/',
     seviceUrl:'https://kffaq.jinsdk.com/',
@@ -14,7 +12,9 @@ let util = {
         initSdkType:'app/native.php',
         change:'password/change.php',
         userProfile:'userProfile.php',
-        logout:'logout.php'
+        logout:'logout.php',
+        register:'register.php',
+        rename:'rename.php',
     },
     cookieField:{uid:'',nickname:'',isLogin:false,open_id:'',password:'',token:'',identity:''},
 
@@ -106,19 +106,35 @@ let util = {
         if(user.uid){
             callback(callbackData);
         }
+    },
+    checkUname:function(uname) {
+        var rebackResult = new Object();
+        rebackResult.status = false;
+        rebackResult.msg = "";
+        if (uname.length < 4 || uname.length > 12) {
+            rebackResult.msg = "用户名长度为4-12位";
+            return rebackResult;
+        }
+        var reg = /^[0-9a-zA-Z]*$/;
+        if ((!reg.test(uname))) {
+            rebackResult.msg = "用户名只能由字母或数字组成";
+            return rebackResult;
+        }
+        rebackResult.status = true;
+        return rebackResult;
+    },
+    refreshGame(){
+        var app_url=top_vue.$store.state.app_url||this.app_url
+        top_vue.$store.commit('setGameUrl',app_url+'?t='+new Date().getTime());
     }
 };
 
-
-
 util.params=function(obj){
-    var data='';
-
+    var params = []
     for(var key in obj){
-
-        data+=key+"="+obj[key]+"&"
+        params.push(escape(key)+"="+escape(obj[key]))
     }
-    return data.substring(0,data.length-1);
+    return params.join('&').replace(/%20/g, '+');
 }
 
 util.ajax=function(obj){
@@ -195,7 +211,7 @@ util.md5_sign=function(obj){
     })
     key_url=key_url+COMM.product_key
     obj.sign= md5(key_url)
-    return obj
+    return this.deepCopy(obj);
 }
 
 util.setLog=function(str, level) {
@@ -244,7 +260,7 @@ util.inOf = function (arr, targetArr) {
         }
     });
     return res;
-};
+}
 
 util.oneOf = function (ele, targetArr) {
     if (targetArr.indexOf(ele) >= 0) {
@@ -252,7 +268,7 @@ util.oneOf = function (ele, targetArr) {
     } else {
         return false;
     }
-};
+}
 
 function typeOf(obj) {
     const toString = Object.prototype.toString;
@@ -269,5 +285,50 @@ function typeOf(obj) {
         '[object Object]'   : 'object'
     };
     return map[toString.call(obj)];
+}
+//原生login回调
+function nativeSdkLloginCallback(obj){
+    if(obj){
+        var resObjet=JSON.parse(obj);
+        util.setUserCache(resObjet);
+        if(callbackFunInit){
+            callbackFunInit({status:true});
+            callbackFunInit=null;
+        }else{
+            util.refreshGame();
+        }  
+    }else{
+        if(callbackFunInit){
+            callbackFunInit({status:false});
+            callbackFunInit=null;
+        }
+    }
+}
+
+//原生init回调
+function nativeSdkInitCallback(obj){
+    if(COMM.isNative&&obj&&window.WhaleSdk){
+        var resObjet=JSON.parse(obj);
+        top_vue.$store.commit('setAppInfo',resObjet.data);
+        WhaleSdk.login();
+    }else{
+        if(callbackFunInit){
+            callbackFunInit({status:false});
+            callbackFunInit=null;
+        }
+    }
+}
+
+//原生logOut回调
+function nativeSdkLogoutCallback(){
+    if(COMM.isNative&&window.WhaleSdk){
+        util.clearAllCookie();
+        //如果原生主动发起登出会没有回调
+        if(callbackFun){
+            callbackFun({status:true});
+            callbackFun=null;
+        }
+        util.refreshGame();
+    } 
 }
 export default util;

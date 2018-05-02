@@ -19,13 +19,15 @@
          <div class="btn" style="padding:10px;">
             <flexbox>
               <flexbox-item :span="4"><x-button plain type="primary" @click.native="close()">关闭</x-button></flexbox-item>
-              <flexbox-item><x-button type="primary">登录</x-button></flexbox-item>
+              <flexbox-item><x-button type="primary" @click.native="save()">登录</x-button></flexbox-item>
             </flexbox>   
          </div>
       </x-dialog>
 </div>
 </template>
 <script>
+import util from '@/libs/util.js';
+import {md5} from 'vux';
 export default{
 	data(){
 		return{	
@@ -42,6 +44,44 @@ export default{
     methods:{
       close(){
         this.$emit('input', false);
+      },
+      save(){
+        var url =util.getUrl('userProfile');
+        var realname =this.realname;
+        var idcard = this.identity;
+
+        if (!realname.length) {
+          this.$vux.alert.show({content: "请填写真实姓名"});
+          return false;
+        }
+        if (idcard.length != 15 && idcard.length != 18) {
+          this.$vux.alert.show({content: "身份证号码格式错误"});
+          return false;
+        }
+        var user=util.getUserCache()
+        var urlData={
+          identity:idcard,
+          realname:realname,
+          token:user.token
+        };
+        util.ajaxRequestData(url,urlData, (rebackData)=> {
+            util.setLog(JSON.stringify(rebackData), 3);
+            if (rebackData.status == true) {
+                var s_res=rebackData.data;
+                if(!s_res.code){
+                    var that=this;
+                    this.$vux.alert.show({
+                      content: "您的账号实名信息已提交成功",
+                      onHide() {
+                        that.close();
+                        that.$emit('on-handle-complete',s_res.data);
+                      }
+                    });                 
+                }else{
+                  this.$vux.alert.show({content: s_res.msg});
+                }
+            }
+        });
       }
     }
 }
